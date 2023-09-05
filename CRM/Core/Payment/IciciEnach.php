@@ -189,8 +189,7 @@ class CRM_Core_Payment_IciciEnach extends CRM_Core_Payment {
       'consumerEmailId' => $contactDetails['email_primary.email'],
       'items' => [$this->getOrderDetails()],
       'totalamount' => $this->getFormatedAmount($this->_paymentData),
-      // FIXME
-      'cartDescription' => 'ddd',
+      'cartDescription' => substr($this->_propertyBag->getDescription(), 0, 32),
       'payment_processor_id' => $this->_paymentProcessor['id'],
       'contact_id' => $this->_paymentData['contactID'],
     ];
@@ -304,10 +303,10 @@ class CRM_Core_Payment_IciciEnach extends CRM_Core_Payment {
     else if ($this->_reponseData['response']['txn_status'] == '0399') {
       $this->_errorMessage = 'Failed: ' . $this->_reponseData['response']['txn_err_msg'];
     }
-    else if ($this->_reponseData['response']['txn_status'] == '0396') {
+    else if ($this->_reponseData['response']['txn_status'] == '0392') {
       $this->_errorMessage = 'Cancelled : ' . $this->_reponseData['response']['txn_err_msg'];
     }
-    else if ($this->_reponseData['response']['txn_status'] == '0392') {
+    else if ($this->_reponseData['response']['txn_status'] == '0396') {
       $this->_successResponse = TRUE;
     }
 

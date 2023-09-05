@@ -113,9 +113,19 @@ function icicipayment_civicrm_managed(&$entities) {
 
 }
 
-function icicipayment_civicrm_buildForm($formName, &$form) {
-  if (in_array($formName, [
-    'CRM_Contribute_Form_Contribution_Main', 'CRM_Event_Form_Registration_Register'
-  ])) {
+function icicipayment_civicrm_validateForm($formName, &$fields, &$files, &$form, &$errors) {
+  if (in_array($formName, ['CRM_Contribute_Form_Contribution_Main'])) {
+    if (empty($fields['is_recur'])
+      && !empty($fields['payment_processor_id'])
+    ) {
+      $count = $paymentProcessors = \Civi\Api4\PaymentProcessor::get(FALSE)
+        ->selectRowCount()
+        ->addWhere('id', '=', $fields['payment_processor_id'])
+        ->addWhere('payment_processor_type_id:name', '=', 'icici_e_nach')
+        ->execute()->rowCount;
+      if ($count > 0) {
+        $errors['is_recur'] = ts('For the selected payment method, the payment should be recurring.');
+      }
+    }
   }
 }
