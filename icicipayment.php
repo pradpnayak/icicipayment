@@ -46,13 +46,15 @@ function icicipayment_civicrm_managed(&$entities) {
       'version' => 3,
       'title' => ts('ICICI (Easy pay)'),
       'name' => 'icici_easy_pay',
-      'description' => 'ICICI Payment Processor',
-      'user_name_label' => 'ICID',
-      'password_label' => 'AES key',
+      'description' => ts('ICICI Payment Processor'),
+      'user_name_label' => ts('ICID'),
+      'password_label' => ts('AES key'),
       'class_name' => 'Payment_IciciEasyPay',
+      'site_url' => '',
       'billing_mode' => 4,
       'payment_type' => 1,
       'is_recur' => FALSE,
+      'is_active' => 1,
     ],
   ];
 
@@ -64,15 +66,16 @@ function icicipayment_civicrm_managed(&$entities) {
       'version' => 3,
       'title' => ts('ICICI (E-NACH)'),
       'name' => 'icici_e_nach',
-      'description' => 'ICICI Payment Processor',
-      'user_name_label' => 'Merchant Code',
-      'password_label' => 'Salt',
-      'subject_label' => 'Scheme Code',
+      'description' => ts('ICICI Payment Processor'),
+      'user_name_label' => ts('Merchant Code'),
+      'password_label' => ts('Salt'),
       'site_url' => 'https://www.paynimo.com/api/paynimoV2.req',
-      'class_name' => 'Payment_IciciEaNach',
+      'class_name' => 'Payment_IciciEnach',
       'billing_mode' => 4,
-      'payment_type' => 3,
-      'is_recur' => FALSE,
+      'subject' => ts('Scheme Code'),
+      'payment_type' => CRM_Core_Payment::PAYMENT_TYPE_DIRECT_DEBIT,
+      'is_recur' => TRUE,
+      'is_active' => 1,
     ],
   ];
 
@@ -88,6 +91,7 @@ function icicipayment_civicrm_managed(&$entities) {
     'ICICI_CASH' => ts('Cash ICICI'),
     'ICICI_CHEQUE' => ts('Cheque ICICI'),
     'UPI_ICICI' => ts('UPI ICICI'),
+    'Direct Debit' => ts('Direct Debit'),
   ] as $name => $label) {
     $entities[] = [
       'name' => 'ICICI Payment methods ' . $name,
@@ -106,6 +110,7 @@ function icicipayment_civicrm_managed(&$entities) {
       ],
     ];
   }
+
 }
 
 function icicipayment_civicrm_buildForm($formName, &$form) {

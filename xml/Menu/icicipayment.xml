@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<menu>
+  <item>
+    <path>civicrm/icicipayment/details</path>
+    <page_callback>CRM_IciciPayment_Page_PaymentPage</page_callback>
+    <title>Processing Payment....</title>
+    <access_callback>1</access_callback>
+    <is_public>true</is_public>
+  </item>
+</menu>

@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="iso-8859-1" ?>
+
+<table>
+  <base>CRM/IciciPayment</base>
+  <class>IciciPaymentMandate</class>
+  <name>civicrm_icici_mandates</name>
+  <comment>icici Gateway Checksum Data</comment>
+  <add>1.0</add>
+  <log>true</log>
+  <field>
+    <name>id</name>
+    <type>int unsigned</type>
+    <required>true</required>
+    <comment>Unique ID</comment>
+    <add>1.0</add>
+  </field>
+  <primaryKey>
+    <name>id</name>
+    <autoincrement>true</autoincrement>
+  </primaryKey>
+  <field>
+    <name>contribution_recur_id</name>
+    <uniqueName>icici_contribution_recur_id</uniqueName>
+    <title>Contribution Recur Id</title>
+    <required>TRUE</required>
+    <type>int unsigned</type>
+    <comment>FK to Contribution Recur ID.</comment>
+    <add>1.0</add>
+  </field>
+  <foreignKey>
+    <name>contribution_recur_id</name>
+    <table>civicrm_contribution_recur</table>
+    <key>id</key>
+    <add>1.0</add>
+    <onDelete>CASCADE</onDelete>
+  </foreignKey>
+  <index>
+    <name>UI_icici_contribution_recur_id</name>
+    <fieldName>contribution_recur_id</fieldName>
+    <unique>true</unique>
+    <add>1.0</add>
+  </index>
+  <field>
+    <name>mandate</name>
+    <uniqueName>icici_mandate</uniqueName>
+    <title>Mandate</title>
+    <type>varchar</type>
+    <length>255</length>
+    <comment>Mandate</comment>
+    <required>TRUE</required>
+    <serialize>JSON</serialize>
+    <add>1.0</add>
+  </field>
+  <field>
+    <name>created_date</name>
+    <uniqueName>icici_created_date</uniqueName>
+    <type>timestamp</type>
+    <comment>When the data was created.</comment>
+    <required>TRUE</required>
+    <default>CURRENT_TIMESTAMP</default>
+    <html>
+      <label>Created Date</label>
+    </html>
+    <add>1.0</add>
+  </field>
+</table>
