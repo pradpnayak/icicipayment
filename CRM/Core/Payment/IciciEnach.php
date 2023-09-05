@@ -165,6 +165,10 @@ class CRM_Core_Payment_IciciEnach extends CRM_Core_Payment {
     $recurDetails = $this->getRecurDetails();
     $contactDetails = $this->getContactDetails();
 
+    $query = [
+      'ccid' => $this->_paymentData['contributionID'],
+    ];
+
     $paymentData = [
       'deviceId' => 'WEBSH2',
       'merchantId' => $this->_paymentProcessor['user_name'],
@@ -174,17 +178,18 @@ class CRM_Core_Payment_IciciEnach extends CRM_Core_Payment {
       'paymentMode' => 'all',
       'amountType' => 'F',
       'maxAmount' => $this->getFormatedAmount($this->_paymentData),
-      'returnUrl' => $this->getPaymentNotifyUrl($this->_paymentData['qfKey']),
-      'redirectOnClose' => $this->getPaymentNotifyUrl($this->_paymentData['qfKey'], TRUE),
+      'returnUrl' => $this->getPaymentNotifyUrl($this->_paymentData['qfKey'], FALSE, $query),
+      'redirectOnClose' => $this->getPaymentNotifyUrl($this->_paymentData['qfKey'], TRUE, $query),
       'txnId' => $recurDetails['trxn_id'],
       'debitStartDate' => date('d-m-Y'),
-      'debitEndDate' => date('d-m-Y'),
+      'debitEndDate' => date('d-m-Y', strtotime('+30 years')),
       'responseHandler' => 'handleResponse',
       'frequency' => $this->_frequencies[$recurDetails['frequency_unit']],
       'merchantLogoUrl' => $this->getWebsiteLogo(),
       'consumerEmailId' => $contactDetails['email_primary.email'],
       'items' => [$this->getOrderDetails()],
       'totalamount' => $this->getFormatedAmount($this->_paymentData),
+      // FIXME
       'cartDescription' => 'ddd',
       'payment_processor_id' => $this->_paymentProcessor['id'],
       'contact_id' => $this->_paymentData['contactID'],
@@ -266,5 +271,132 @@ class CRM_Core_Payment_IciciEnach extends CRM_Core_Payment {
     ];
   }
 
+  private function extractMsg() {
+    $this->_reponseData['msg'] = explode('|', $this->_reponseData['msg']);
+    $string = 'txn_status|txn_msg|txn_err_msg|clnt_txn_ref|tpsl_bank_cd|tpsl_txn_id|txn_amt|clnt_rqst_meta|tpsl_txn_time|bal_amt|card_id|alias_name|BankTransactionID|mandate_reg_no|token|hash';
+    $this->_reponseData['response'] = [];
+    foreach (explode('|', $string) as $k => $key) {
+      $this->_reponseData['response'][$key] = $this->_reponseData['msg'][$k];
+    }
+  }
+
+  /**
+  * Store input array on the class.
+  */
+ public function setNotificationParameters(): void {
+   $this->_reponseData = $_REQUEST;
+   $this->_component = $_REQUEST['component'] ?? 'contribute';
+   $this->_reponseData['processor_id'] = $this->_paymentProcessor['id'];
+   $this->_contributionId = $this->_reponseData['ccid'] ?? NULL;
+   if (!empty($this->_reponseData['msg'])) {
+     $this->extractMsg();
+   }
+
+   CRM_Core_Error::debug_var('sdsd', $this->_reponseData);
+
+  // log response
+  self::logPaymentNotification($this->_reponseData);
+
+  if (!empty($this->_reponseData['response']['txn_status'])) {
+    if ($this->_reponseData['response']['txn_status'] == 0300) {
+      $this->_successResponse = TRUE;
+    }
+    else if ($this->_reponseData['response']['txn_status'] == '0399') {
+      $this->_errorMessage = 'Failed: ' . $this->_reponseData['response']['txn_err_msg'];
+    }
+    else if ($this->_reponseData['response']['txn_status'] == '0396') {
+      $this->_errorMessage = 'Cancelled : ' . $this->_reponseData['response']['txn_err_msg'];
+    }
+    else if ($this->_reponseData['response']['txn_status'] == '0392') {
+      $this->_successResponse = TRUE;
+    }
+
+  }
+
+  $this->_contributionStatuses = CRM_Contribute_BAO_Contribution::buildOptions(
+    'contribution_status_id', 'validate'
+  );
+
+  $this->log('ipn_requestBody', ['data' => $this->_reponseData]);
+
+   // Differentiate browser submit v/s push notification.
+   if (!empty($_SERVER['HTTP_USER_AGENT'])) {
+     $this->setBounceSuccessURL();
+   }
+   else {
+     http_response_code(200);
+   }
+
+ }
+
+  /**
+   * Process incoming payment notification (IPN).
+   *
+   * @throws \CRM_Core_Exception
+   * @throws \CiviCRM_API3_Exception
+   */
+  public function handlePaymentNotification() {
+    $this->setNotificationParameters();
+
+    $this->processPaymentNotification();
+
+    if (!empty($this->_bounceSuccessURL)) {
+      if (!$this->_successResponse) {
+        $errorMessage = ts('Your payment was not successful. Please try again.');
+        if (!empty($this->_errorMessage)) {
+           $errorMessage .= ' (' . $this->_errorMessage . ')';
+        }
+        $this->handleError($errorMessage, [
+          'contribution_id' => $this->_contributionId,
+        ]);
+      }
+      else {
+        CRM_Utils_System::redirect($this->_bounceSuccessURL);
+      }
+    }
+
+    CRM_Utils_System::civiExit();
+  }
+
+  /**
+   * Update Transaction based on outcome of the API.
+   *
+   * @throws CRM_Core_Exception
+   * @throws CiviCRM_API3_Exception
+   */
+  public function processPaymentNotification(): void {
+    $this->_contributionData = civicrm_api3('Contribution', 'getsingle', [
+      'id' => $this->_contributionId,
+    ]);
+
+    $this->_contributionStatusId = $this->_contributionData['contribution_status_id'];
+    $this->_contributionStatusName = CRM_Utils_Array::value(
+      $this->_contributionStatusId, $this->_contributionStatuses
+    );
+
+    if ($this->_successResponse) {
+      // FIXME
+    }
+    else {
+      $this->failContribution();
+      if (!empty($this->_bounceSuccessURL)) {
+        $this->failContributionRecur();
+      }
+    }
+  }
+
+
+
+  /**
+   * Set contribution status to failed.
+   *
+   */
+  private function failContributionRecur(): void {
+    \Civi\Api4\ContributionRecur::update(FALSE)
+      ->addValue('contribution_status_id:name', 'Cancelled')
+      ->addValue('cancel_reason', ts('user aborted/cancelled.'))
+      ->addWhere('id', '=', $this->_contributionData['contribution_recur_id'])
+      ->execute();
+  }
 
 }

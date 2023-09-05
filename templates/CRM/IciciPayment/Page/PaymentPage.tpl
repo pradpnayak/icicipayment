@@ -31,6 +31,9 @@
         },
         'consumerData': {/literal}{$paymentData}{literal}
       };
+
+      //console.log('configJson', configJson);
+
       $.pnCheckout(configJson);
       if (configJson.features.enableNewWindowFlow) {
         pnCheckoutShared.openNewWindow();

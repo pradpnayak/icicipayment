@@ -161,4 +161,135 @@ class CRM_Core_Payment_IciciEasyPay extends CRM_Core_Payment {
     return $paymentData;
   }
 
+  /**
+   * Set mandatory fields.
+   *
+   * @param array $fields
+   */
+  public function setMandatoryFields(array $fields) {
+    if (!empty($fields)) {
+      $this->_mandatoryFields = $fields;
+    }
+  }
+
+  /**
+   * Set optional fields.
+   *
+   * @param array $fields
+   */
+  public function setOptionalFields(array $fields) {
+    if (!empty($fields)) {
+      $this->_optionalFields = $fields;
+    }
+  }
+
+  /**
+   * Process incoming payment notification (IPN).
+   *
+   * @throws \CRM_Core_Exception
+   * @throws \CiviCRM_API3_Exception
+   */
+  public function handlePaymentNotification() {
+    $this->setNotificationParameters();
+
+    $this->_errorMessage = CRM_Core_Payment_IciciErrorCodes::response_code(
+      ($this->_reponseData['Response_Code'] ?? NULL)
+    );
+
+    $this->processPaymentNotification();
+
+    if (!empty($this->_bounceSuccessURL)) {
+      if (!$this->_successResponse) {
+        $errorMessage = $this->_errorMessage ;
+        $errorMessage = ts('Your payment was not successful. Please try again. <br>Error(' . $this->_reponseData['Response_Code'] . ') - ' . $errorMessage);
+        $this->handleError($errorMessage, [
+          'contribution_id' => $this->_contributionId,
+        ]);
+      }
+      else {
+        CRM_Utils_System::redirect($this->_bounceSuccessURL);
+      }
+    }
+
+    CRM_Utils_System::civiExit();
+  }
+
+  /**
+   * Update Transaction based on outcome of the API.
+   *
+   * @throws CRM_Core_Exception
+   * @throws CiviCRM_API3_Exception
+   */
+  public function processPaymentNotification(): void {
+    $this->_contributionData = civicrm_api3('Contribution', 'getsingle', [
+      'id' => $this->_contributionId,
+    ]);
+
+    $this->_contributionStatusId = $this->_contributionData['contribution_status_id'];
+    $this->_contributionStatusName = CRM_Utils_Array::value(
+      $this->_contributionStatusId, $this->_contributionStatuses
+    );
+
+    if ($this->_successResponse) {
+      // validate params
+      if ($this->validateNotificationParameters()) {
+        $this->completeContribution();
+      }
+    }
+    else {
+      $this->failContribution();
+    }
+  }
+
+  /**
+   * validate Notification Parameters.
+   */
+  private function validateNotificationParameters() {
+
+    // if Unique_Ref_Number is empty do not proceed.
+    if (empty($this->_reponseData['ReferenceNo'])) {
+      $this->handleError(
+        'Reference No field is empty, so we cannot proceed further.',
+        $this->_reponseData
+      );
+    }
+
+    if (!$this->validateResponseData()) {
+      $this->handleError(
+        'Invalid response data, failed to validate.',
+        $this->_reponseData
+      );
+    }
+
+    return TRUE;
+  }
+
+  /**
+   * Validate response data
+   *
+   * @return bool
+   *
+   */
+  private function validateResponseData(): bool {
+    foreach ([
+      'ID', 'Response_Code', 'Unique_Ref_Number', 'Service_Tax_Amount',
+      'Processing_Fee_Amount', 'Total_Amount', 'Transaction_Amount',
+      'Transaction_Date', 'Interchange_Value', 'TDR',
+      'Payment_Mode', 'SubMerchantId', 'ReferenceNo', 'TPS',
+    ] as $fieldName) {
+      $data[] = $this->_reponseData[$fieldName];
+    }
+
+    $data[] = $this->_paymentProcessor['password'];
+
+    $verificationKey = implode('|', $data);
+    $encryptedMessage = hash('sha512', $verificationKey);
+
+    if ($encryptedMessage == $this->_reponseData['RS']) {
+      return TRUE;
+    }
+
+    return FALSE;
+  }
+
 }

@@ -257,9 +257,7 @@ trait CRM_Core_Payment_IciciTrait {
    *
    */
   private function failContribution(): void {
-    $errorMessage = CRM_Core_Payment_IciciErrorCodes::response_code(
-      $this->_reponseData['Response_Code']
-    );
+    $errorMessage = $this->_errorMessage;
     if (stripos($errorMessage, 'cancelled') !== FALSE) {
       if (!$this->checkStatusAlreadyHandled('Cancelled')) {
         $this->updateContribution('Cancelled', [
@@ -323,7 +321,7 @@ trait CRM_Core_Payment_IciciTrait {
    $this->_contributionId = $this->_reponseData['ReferenceNo'] ?? NULL;
 
   // log response
-  self::logPaymentNotification($params);
+  self::logPaymentNotification($this->_reponseData);
 
   if (!empty($this->_reponseData['Response_Code'])
     && $this->_reponseData['Response_Code'] == 'E000'
@@ -404,8 +402,9 @@ trait CRM_Core_Payment_IciciTrait {
    * @return string
    *   URL to notify outcome of transaction.
    */
-  private function getPaymentNotifyUrl(string $qfKey, bool $failURL = FALSE): string {
-    $query = ['qfKey' => $qfKey, 'component' => $this->_component];
+  private function getPaymentNotifyUrl(string $qfKey, bool $failURL = FALSE, array $query = []): string {
+    $query['qfKey'] = $qfKey;
+    $query['component'] = $this->_component;
 
     if ($failURL) {
       $query['failed'] = 1;
@@ -425,6 +424,7 @@ trait CRM_Core_Payment_IciciTrait {
       "civicrm/payment/ipn/{$this->_paymentProcessor['id']}",
       $query, TRUE, NULL, FALSE, TRUE
     );
+
     return (stristr($url, '.')) ? $url : '';
   }
 
