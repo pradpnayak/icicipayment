@@ -137,15 +137,10 @@ class CRM_Core_Payment_IciciEnach extends CRM_Core_Payment {
     ];
   }
 
-  private function generateHashToken(array $paymentData): string {
+  private function generateHashToken(array $paymentData, array $keys): string {
     $hashData = [];
 
-    foreach ([
-      'merchantId', 'txnId', 'totalamount', 'accountNo', 'consumerId',
-      'consumerMobileNo', 'consumerEmailId', 'debitStartDate', 'debitEndDate',
-      'maxAmount', 'amountType', 'frequency', 'cardNumber', 'expMonth',
-      'expYear', 'cvvCode',
-    ] as $k) {
+    foreach ($keys as $k) {
       $hashData[] = $paymentData[$k] ?? NULL;
     }
 
@@ -194,7 +189,12 @@ class CRM_Core_Payment_IciciEnach extends CRM_Core_Payment {
       'contact_id' => $this->_paymentData['contactID'],
     ];
 
-    $paymentData['token'] = $this->generateHashToken($paymentData);
+    $paymentData['token'] = $this->generateHashToken($paymentData, [
+      'merchantId', 'txnId', 'totalamount', 'accountNo', 'consumerId',
+      'consumerMobileNo', 'consumerEmailId', 'debitStartDate', 'debitEndDate',
+      'maxAmount', 'amountType', 'frequency', 'cardNumber', 'expMonth',
+      'expYear', 'cvvCode',
+    ]);
 
     // Allow further manipulation of the arguments via custom hooks ..
     CRM_Utils_Hook::alterPaymentProcessorParams(
@@ -338,6 +338,8 @@ class CRM_Core_Payment_IciciEnach extends CRM_Core_Payment {
   public function handlePaymentNotification() {
     $this->setNotificationParameters();
 
+    CRM_Core_Error::debug_var('$hashValue', $this->_reponseData);
+
     $this->processPaymentNotification();
 
     if (!empty($this->_bounceSuccessURL)) {
@@ -383,12 +385,30 @@ class CRM_Core_Payment_IciciEnach extends CRM_Core_Payment {
         );
       }
     }
-    else {
+    else if ($this->verifyResponse()) {
       $this->failContribution();
       if (!empty($this->_bounceSuccessURL)) {
-        $this->failContributionRecur();
+        $this->failContributionRecur(ts('user aborted/cancelled.'));
       }
     }
+  }
+
+  private function verifyResponse() {
+    if (empty($this->_reponseData['response'])) {
+      return FALSE;
+    }
+    $hashValue = $this->generateHashToken($this->_reponseData['response'], [
+      'txn_status', 'txn_msg', 'txn_err_msg', 'clnt_txn_ref',
+      'tpsl_bank_cd', 'tpsl_txn_id', 'txn_amt', 'clnt_rqst_meta',
+      'tpsl_txn_time', 'bal_amt', 'card_id', 'alias_name',
+      'BankTransactionID', 'mandate_reg_no', 'token',
+    ]);
+
+    if ($hashValue == $this->_reponseData['response']['hash']) {
+      return TRUE;
+    }
+
+    return FALSE;
   }
 
   public function getResponse($params) {
@@ -416,12 +436,35 @@ class CRM_Core_Payment_IciciEnach extends CRM_Core_Payment {
    * Set contribution status to failed.
    *
    */
-  private function failContributionRecur(): void {
+  private function failContributionRecur(string $msg = ''): void {
     \Civi\Api4\ContributionRecur::update(FALSE)
       ->addValue('contribution_status_id:name', 'Cancelled')
-      ->addValue('cancel_reason', ts('user aborted/cancelled.'))
+      ->addValue('cancel_reason', $msg)
       ->addWhere('id', '=', $this->_contributionData['contribution_recur_id'])
       ->execute();
+  }
+
+  public function cancelTransaction(int $recurId, string $msg) {
+    if (!empty($recurId)) {
+      $this->_contributionData['contribution_recur_id'] = $recurId;
+      $this->_errorMessage = $msg;
+      if (empty($this->_contributionId)) {
+        $this->_contributionId = \Civi\Api4\Contribution::get(FALSE)
+          ->addSelect('id')
+          ->addWhere('contribution_recur_id', '=', $recurId)
+          ->addWhere('contribution_status_id:name', '=', 'Pending')
+          ->addWhere('is_template', '=', FALSE)
+          ->setLimit(1)
+          ->execute()
+          ->first()['id'];
+      }
+
+      $this->failContributionRecur($msg);
+
+      if (!empty($this->_contributionId)) {
+        $this->failContribution();
+      }
+    }
   }
 
 }

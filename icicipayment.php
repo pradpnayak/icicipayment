@@ -115,10 +115,6 @@ function icicipayment_civicrm_managed(&$entities) {
 
 function icicipayment_civicrm_buildForm($formName, &$form) {
   if (in_array($formName, ['CRM_Contribute_Form_Contribution'])) {
-    
-    $obj = new CRM_IciciPayment_Utils_MandateVerification();
-    $obj->createMandate(7,1036208924
-    );
   }
 }
 

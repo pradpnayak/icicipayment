@@ -48,7 +48,6 @@
     <length>255</length>
     <comment>Mandate</comment>
     <required>TRUE</required>
-    <serialize>JSON</serialize>
     <add>1.0</add>
   </field>
   <field>

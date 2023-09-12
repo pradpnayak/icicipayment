@@ -30,7 +30,9 @@ class CRM_IciciPayment_BAO_IciciPaymentMandate extends CRM_IciciPayment_DAO_Icic
 
   public static function getRecurDetails(int $recurId): array {
     return \Civi\Api4\ContributionRecur::get(FALSE)
-      ->addSelect('trxn_id', 'start_date', 'currency', 'contact_id')
+      ->addSelect('trxn_id', 'start_date', 'currency', 'contact_id',
+        'payment_processor_id'
+      )
       ->addWhere('id', '=', $recurId)
       ->execute()
       ->first() ?? [];
