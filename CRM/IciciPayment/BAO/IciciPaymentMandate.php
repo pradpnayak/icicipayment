@@ -16,12 +16,24 @@ class CRM_IciciPayment_BAO_IciciPaymentMandate extends CRM_IciciPayment_DAO_Icic
     $dao->contribution_recur_id = $params['contribution_recur_id'];
     $dao->mandate = $params['mandate'];
     if (empty($params['id'])) {
-      $dao->find(TRUE);
-      return $dao;
+      if ($dao->find(TRUE)) {
+        return $dao;
+      }
     }
-    $dao->save(TRUE);
+    else {
+      $dao->id = $params['id'];
+    }
+    $dao->save();
 
     return $dao;
+  }
+
+  public static function getRecurDetails(int $recurId): array {
+    return \Civi\Api4\ContributionRecur::get(FALSE)
+      ->addSelect('trxn_id', 'start_date', 'currency', 'contact_id')
+      ->addWhere('id', '=', $recurId)
+      ->execute()
+      ->first() ?? [];
   }
 
 }

@@ -72,7 +72,7 @@ function icicipayment_civicrm_managed(&$entities) {
       'site_url' => 'https://www.paynimo.com/api/paynimoV2.req',
       'class_name' => 'Payment_IciciEnach',
       'billing_mode' => 4,
-      'subject' => ts('Scheme Code'),
+      'subject_label' => ts('Scheme Code'),
       'payment_type' => CRM_Core_Payment::PAYMENT_TYPE_DIRECT_DEBIT,
       'is_recur' => TRUE,
       'is_active' => 1,
@@ -111,6 +111,15 @@ function icicipayment_civicrm_managed(&$entities) {
     ];
   }
 
+}
+
+function icicipayment_civicrm_buildForm($formName, &$form) {
+  if (in_array($formName, ['CRM_Contribute_Form_Contribution'])) {
+    
+    $obj = new CRM_IciciPayment_Utils_MandateVerification();
+    $obj->createMandate(7,1036208924
+    );
+  }
 }
 
 function icicipayment_civicrm_validateForm($formName, &$fields, &$files, &$form, &$errors) {

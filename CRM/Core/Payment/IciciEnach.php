@@ -291,13 +291,14 @@ class CRM_Core_Payment_IciciEnach extends CRM_Core_Payment {
      $this->extractMsg();
    }
 
-   CRM_Core_Error::debug_var('sdsd', $this->_reponseData);
-
   // log response
   self::logPaymentNotification($this->_reponseData);
 
   if (!empty($this->_reponseData['response']['txn_status'])) {
-    if ($this->_reponseData['response']['txn_status'] == 0300) {
+    if ($this->_reponseData['response']['txn_status'] == '0300') {
+      $this->_successResponse = TRUE;
+    }
+    else if ($this->_reponseData['response']['txn_status'] == '0398') {
       $this->_successResponse = TRUE;
     }
     else if ($this->_reponseData['response']['txn_status'] == '0399') {
@@ -374,7 +375,13 @@ class CRM_Core_Payment_IciciEnach extends CRM_Core_Payment {
     );
 
     if ($this->_successResponse) {
-      // FIXME
+      if ($this->verifyResponse()) {
+        $obj = new CRM_IciciPayment_Utils_MandateVerification();
+        $obj->createMandate(
+          $recurId,
+          $this->_reponseData['response']['mandate_reg_no'] ?? ''
+        );
+      }
     }
     else {
       $this->failContribution();
@@ -384,7 +391,26 @@ class CRM_Core_Payment_IciciEnach extends CRM_Core_Payment {
     }
   }
 
+  public function getResponse($params) {
 
+    $ch = curl_init();
+
+    // Set the curl URL option
+    curl_setopt($ch, CURLOPT_URL, $this->_paymentUrl);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Accept: application/json',
+    'Content-Type: application/json',]);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($params));
+    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'GET');
+
+    // This option will return data as a string instead of direct output
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
+
+    // Execute curl & store data in a variable
+    $output = curl_exec($ch);
+    curl_close($ch);
+
+    return json_decode($output, TRUE);
+  }
 
   /**
    * Set contribution status to failed.

@@ -1,4 +1,4 @@
-<div>{ts}Processing payment.....{/ts}</div>
+<div>{ts}{/ts}</div>
 {literal}
 
 <script type="text/javascript">
