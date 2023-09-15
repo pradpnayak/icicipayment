@@ -267,11 +267,15 @@ trait CRM_Core_Payment_IciciTrait {
       }
     }
     elseif (!$this->checkStatusAlreadyHandled('Failed')) {
-      $this->updateContribution('Failed', [
-        'trxn_id' => $this->_reponseData['Unique_Ref_Number'] ?? '',
+      $params = [
         'cancel_date' => $this->getDate(($this->_reponseData['Transaction_Date'] ?? NULL)),
         'cancel_reason' => $errorMessage,
-      ]);
+      ];
+
+      if (!empty($this->_reponseData['Unique_Ref_Number'])) {
+        $params['trxn_id'] = $this->_reponseData['Unique_Ref_Number'];
+      }
+      $this->updateContribution('Failed', $params);
     }
   }
 

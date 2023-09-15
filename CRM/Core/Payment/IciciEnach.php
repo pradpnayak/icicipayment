@@ -380,7 +380,7 @@ class CRM_Core_Payment_IciciEnach extends CRM_Core_Payment {
       if ($this->verifyResponse()) {
         $obj = new CRM_IciciPayment_Utils_MandateVerification();
         $obj->createMandate(
-          $recurId,
+          $this->_contributionData['contribution_recur_id'],
           $this->_reponseData['response']['mandate_reg_no'] ?? ''
         );
       }
@@ -448,23 +448,94 @@ class CRM_Core_Payment_IciciEnach extends CRM_Core_Payment {
     if (!empty($recurId)) {
       $this->_contributionData['contribution_recur_id'] = $recurId;
       $this->_errorMessage = $msg;
-      if (empty($this->_contributionId)) {
-        $this->_contributionId = \Civi\Api4\Contribution::get(FALSE)
-          ->addSelect('id')
-          ->addWhere('contribution_recur_id', '=', $recurId)
-          ->addWhere('contribution_status_id:name', '=', 'Pending')
-          ->addWhere('is_template', '=', FALSE)
-          ->setLimit(1)
-          ->execute()
-          ->first()['id'];
-      }
+      $contribution = \Civi\Api4\Contribution::get(FALSE)
+        ->addSelect('id', 'contribution_status_id:name')
+        ->addWhere('contribution_recur_id', '=', $recurId)
+        ->addWhere('contribution_status_id:name', '=', 'Pending')
+        ->addWhere('is_template', '=', FALSE)
+        ->setLimit(1)
+        ->execute()
+        ->first();
+      $this->_contributionId = $contribution['id'];
+      $this->_contributionStatusName = $contribution['contribution_status_id:name'];
 
       $this->failContributionRecur($msg);
-
       if (!empty($this->_contributionId)) {
         $this->failContribution();
       }
     }
+  }
+
+  public function completeContribution(int $contributionId, int $recurId) {
+    civicrm_api3('Contribution', 'completetransaction', [
+      'id' => $contributionId,
+    ]);
+
+    \Civi\Api4\ContributionRecur::update(FALSE)
+      ->addWhere('id', '=', $recurId)
+      ->addValue('failure_count', 0)
+      ->execute();
+
+  }
+
+  public function updateRecurring(int $recurId, bool $failed) {
+    $recurDetails = CRM_IciciPayment_BAO_IciciPaymentMandate::getRecurDetails(
+      $recurId
+    );
+    $nextScheduledContributionDate = $this->calculateNextScheduledDate($recurDetails);
+    $recur = \Civi\Api4\ContributionRecur::update(FALSE)
+      ->addWhere('id', '=', $recurId)
+      ->addValue('auto_renew', 1);
+
+    if ($failed === FALSE) {
+      $recur->addValue('failure_count', ($recurDetails['failure_count']++));
+    }
+    else {
+      $recur->addValue('next_sched_contribution_date', $nextScheduledContributionDate);
+      $recur->addValue('cycle_day', date('d', strtotime($nextScheduledContributionDate)));
+    }
+
+    $recur->execute();
+  }
+
+  /**
+   * Calculate the end_date for a recurring contribution based on the number of installments
+   * @param $params
+   *
+   * @return string
+   * @throws \CRM_Core_Exception
+   */
+  public function calculateNextScheduledDate($params) {
+    $startDate = date('YmdHis');
+    $nextScheduleDate = $params['next_sched_contribution_date'] ?? NULL;
+    if (!empty($nextScheduleDate)
+      && (date('YmdHis', strtotime($nextScheduleDate)) < date('YmdHis'))
+    ) {
+      $startDate = $params['next_sched_contribution_date'];
+    }
+
+    switch ($params['frequency_unit']) {
+      case 'day':
+        $frequencyUnit = 'D';
+        break;
+
+      case 'week':
+        $frequencyUnit = 'W';
+        break;
+
+      case 'month':
+        $frequencyUnit = 'M';
+        break;
+
+      case 'year':
+        $frequencyUnit = 'Y';
+        break;
+    }
+
+    $numberOfUnits = $params['frequency_interval'];
+    $endDate = new DateTime($startDate);
+    $endDate->add(new DateInterval("P{$numberOfUnits}{$frequencyUnit}"));
+    return $endDate->format('Ymd');
   }
 
 }

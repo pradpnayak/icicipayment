@@ -22,6 +22,7 @@ class CRM_IciciPayment_Page_PaymentPage extends CRM_Core_Page {
 
     Civi::resources()->addScriptUrl('https://www.paynimo.com/PaynimoCDN/lib/jquery.min.js', 10, 'html-header');
     Civi::resources()->addScriptUrl('https://www.paynimo.com/paynimocheckout/server/lib/checkout.js', 10, 'html-header');
+    CRM_Core_Error::debug_var('paymentData', json_encode($paymentData));
     $this->assign('paymentData', json_encode($paymentData));
     return parent::run();
   }
