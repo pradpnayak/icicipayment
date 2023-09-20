@@ -29,6 +29,10 @@ class CRM_IciciPayment_Utils_MandateVerification {
       $query, [1 => [$pendingStatus, 'Integer']]
     )->fetchAll();
     foreach ($results as $result) {
+      CRM_Core_Error::debug_log_message(
+        'MandateVerify:' . print_r($result, 1),
+        FALSE, 'IciciEnach', PEAR_LOG_INFO
+      );
       $this->createMandate($result['recur_id']);
     }
 
@@ -94,7 +98,7 @@ class CRM_IciciPayment_Utils_MandateVerification {
     ];
 
     $response = $paymentProcessorObj->getResponse($paymentParams);
-    //CRM_Core_Error::debug($response);exit;
+    CRM_Core_Error::debug('ddd', $response);exit;
     if (!empty($response['paymentMethod'])) {
       $token = $response['paymentMethod']['token'] ?? NULL;
       $code = $response['paymentMethod']['paymentTransaction']['statusCode'] ?? '';

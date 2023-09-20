@@ -338,7 +338,10 @@ class CRM_Core_Payment_IciciEnach extends CRM_Core_Payment {
   public function handlePaymentNotification() {
     $this->setNotificationParameters();
 
-    CRM_Core_Error::debug_var('$hashValue', $this->_reponseData);
+    CRM_Core_Error::debug_log_message(
+      'IPN Notification:' . print_r($this->_reponseData, 1),
+      FALSE, 'IciciEnach', PEAR_LOG_INFO
+    );
 
     $this->processPaymentNotification();
 
@@ -419,6 +422,10 @@ class CRM_Core_Payment_IciciEnach extends CRM_Core_Payment {
     curl_setopt($ch, CURLOPT_URL, $this->_paymentUrl);
     curl_setopt($ch, CURLOPT_HTTPHEADER, ['Accept: application/json',
     'Content-Type: application/json',]);
+    CRM_Core_Error::debug_log_message(
+      'CurlParmas' . print_r($params, 1),
+      FALSE, 'IciciEnach', PEAR_LOG_INFO
+    );
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($params));
     curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'GET');
 
@@ -429,7 +436,13 @@ class CRM_Core_Payment_IciciEnach extends CRM_Core_Payment {
     $output = curl_exec($ch);
     curl_close($ch);
 
-    return json_decode($output, TRUE);
+    CRM_Core_Error::debug_log_message(
+      'CurlResponse' . print_r($output, 1),
+      FALSE, 'IciciEnach', PEAR_LOG_INFO
+    );
+
+    $response = json_decode($output, TRUE);
+    return $response;
   }
 
   /**
@@ -466,9 +479,11 @@ class CRM_Core_Payment_IciciEnach extends CRM_Core_Payment {
     }
   }
 
-  public function completeContribution(int $contributionId, int $recurId) {
+  public function completeContribution(int $contributionId, int $recurId, $trxnId, $date) {
     civicrm_api3('Contribution', 'completetransaction', [
       'id' => $contributionId,
+      'trxn_id' => $trxnId,
+      'trxn_date' => $date,
     ]);
 
     \Civi\Api4\ContributionRecur::update(FALSE)

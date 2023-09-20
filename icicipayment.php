@@ -111,17 +111,100 @@ function icicipayment_civicrm_managed(&$entities) {
     ];
   }
 
+  $entities[] = [
+    'name' => 'CustomGroup_ICICI_Enach_Details',
+    'entity' => 'CustomGroup',
+    'update' => 'never',
+    'module' => 'icicipayment',
+    'params' => [
+      'version' => 4,
+      'values' => [
+        'name' => 'ICICI_Enach_Details',
+        'title' => E::ts('ICICI Enach Details'),
+        'extends' => 'Contribution',
+        'extends_entity_column_id' => NULL,
+        'extends_entity_column_value' => NULL,
+        'style' => 'Inline',
+        'collapse_display' => FALSE,
+        'is_active' => TRUE,
+        'is_multiple' => FALSE,
+        'min_multiple' => NULL,
+        'max_multiple' => NULL,
+        'collapse_adv_display' => TRUE,
+        'table_name' => 'civicrm_icici_enach_details',
+        'is_reserved' => TRUE,
+        'is_public' => FALSE,
+      ],
+      'match' => ['name'],
+    ],
+  ];
+
+  $entities[] = [
+    'name' => 'CustomGroup_ICICI_Enach_Details_CustomField_Initiated_Request',
+    'entity' => 'CustomField',
+    'update' => 'never',
+    'module' => 'icicipayment',
+    'params' => [
+      'version' => 4,
+      'values' => [
+        'custom_group_id.name' => 'ICICI_Enach_Details',
+        'name' => 'Initiated_Request',
+        'label' => E::ts('Initiated Request'),
+        'data_type' => 'Boolean',
+        'html_type' => 'Radio',
+        'default_value' => NULL,
+        'is_required' => FALSE,
+        'is_searchable' => FALSE,
+        'is_search_range' => FALSE,
+        'is_active' => TRUE,
+        'is_view' => TRUE,
+        'options_per_line' => NULL,
+        'text_length' => 255,
+        'note_columns' => 60,
+        'note_rows' => 4,
+        'column_name' => 'initiated_request',
+        'option_group_id' => NULL,
+        'in_selector' => FALSE,
+      ],
+      'match' => [
+        'name', 'custom_group_id'],
+    ],
+  ];
+
+  $entities[] = [
+    'name' => 'CustomGroup_ICICI_Enach_Details_CustomField_Trxn_request_date',
+    'entity' => 'CustomField',
+    'update' => 'never',
+    'module' => 'icicipayment',
+    'params' => [
+      'version' => 4,
+      'values' => [
+        'custom_group_id.name' => 'ICICI_Enach_Details',
+        'name' => 'Trxn_request_date',
+        'label' => E::ts('Trxn request date'),
+        'data_type' => 'Date',
+        'html_type' => 'Select Date',
+        'is_required' => FALSE,
+        'is_active' => TRUE,
+        'is_view' => TRUE,
+        'options_per_line' => NULL,
+        'text_length' => 255,
+        'date_format' => 'mm/dd/yy',
+        'time_format' => 2,
+        'note_columns' => 60,
+        'note_rows' => 4,
+        'column_name' => 'trxn_request_date',
+        'in_selector' => FALSE,
+      ],
+      'match' => ['name','custom_group_id'],
+    ],
+  ];
+
 }
 
 function icicipayment_civicrm_buildForm($formName, &$form) {
   if (in_array($formName, ['CRM_Contribute_Form_Contribution'])) {
-    return;
-    $obj = new CRM_IciciPayment_Utils_MandateVerification();
-    $obj->createMandate(
-      58
-    );
 
-    exit;
   }
 }
 
